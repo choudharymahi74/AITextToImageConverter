@@ -29,7 +29,7 @@ export default function ImageGenerator() {
 
   const generateMutation = useMutation({
     mutationFn: async (data: { prompt: string; style: string; aspectRatio: string; quality: string }) => {
-      const response = await apiRequest("POST", "/api/images/generate", data);
+      const response = await apiRequest("POST", "/api/generate", data);
       return response.json();
     },
     onSuccess: () => {
