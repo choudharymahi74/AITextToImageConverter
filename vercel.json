@@ -1,20 +1,10 @@
 {
-  "version": 2,
-  "buildCommand": "vite build",
-  "outputDirectory": "dist/public",
   "functions": {
-    "api/*.ts": {
-      "runtime": "@vercel/node@3.0.7"
-    }
-  },
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
+    "api/generate.ts": {
+      "runtime": "@vercel/node@18.x"
     },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+    "api/images.ts": {
+      "runtime": "@vercel/node@18.x"
     }
-  ]
+  }
 }
