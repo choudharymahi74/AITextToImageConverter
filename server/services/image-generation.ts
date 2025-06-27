@@ -27,110 +27,131 @@ async function generateWithPollinations(options: ImageGenerationOptions): Promis
   }
 
   // Map aspect ratios to dimensions
-  let dimensions = "1024x1024";
-  if (aspectRatio === "landscape") dimensions = "1792x1024";
-  if (aspectRatio === "portrait") dimensions = "1024x1792";
-
-  // Pollinations API endpoint (free Stable Diffusion service)
-  const encodedPrompt = encodeURIComponent(enhancedPrompt);
-  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${dimensions.split('x')[0]}&height=${dimensions.split('x')[1]}&nologo=true&enhance=true`;
-  
-  // Verify the image was generated successfully
-  try {
-    const response = await fetch(imageUrl, { method: 'HEAD' });
-    if (response.ok) {
-      return { url: imageUrl };
-    }
-    throw new Error('Failed to generate image');
-  } catch (error) {
-    throw new Error('Image generation service unavailable');
-  }
-}
-
-// Alternative free service using Stable Diffusion
-async function generateWithHuggingFace(options: ImageGenerationOptions): Promise<{ url: string }> {
-  const { prompt, style = "realistic" } = options;
-  
-  let enhancedPrompt = prompt;
-  if (style === "digital-art") {
-    enhancedPrompt = `${prompt}, digital art, highly detailed`;
-  } else if (style === "oil-painting") {
-    enhancedPrompt = `${prompt}, oil painting, classical art`;
-  } else if (style === "anime") {
-    enhancedPrompt = `${prompt}, anime style, manga`;
-  } else if (style === "abstract") {
-    enhancedPrompt = `${prompt}, abstract art`;
-  }
-
-  try {
-    // Using a free Hugging Face Stable Diffusion endpoint
-    const response = await fetch("https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: enhancedPrompt,
-        parameters: {
-          negative_prompt: "blurry, low quality, distorted",
-          num_inference_steps: 20,
-          guidance_scale: 7.5,
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const imageBlob = await response.blob();
-    
-    // Convert blob to base64 data URL for immediate use
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve({ url: reader.result as string });
-      reader.onerror = reject;
-      reader.readAsDataURL(imageBlob);
-    });
-  } catch (error) {
-    throw new Error('Hugging Face API unavailable');
-  }
-}
-
-// Demo fallback service for testing (uses placeholder images)
-async function generateDemo(options: ImageGenerationOptions): Promise<{ url: string }> {
-  const { aspectRatio = "square" } = options;
-  
-  // Map aspect ratios to dimensions
   let width = 1024, height = 1024;
   if (aspectRatio === "landscape") { width = 1792; height = 1024; }
   if (aspectRatio === "portrait") { width = 1024; height = 1792; }
+
+  // Clean the prompt for URL encoding
+  const cleanPrompt = enhancedPrompt.replace(/[^\w\s,-]/g, ' ').trim();
+  const encodedPrompt = encodeURIComponent(cleanPrompt);
   
-  // Use Lorem Picsum for demo images with random seed
+  // Create a simple, direct URL without too many parameters
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=1`;
+  
+  console.log('Pollinations URL:', imageUrl);
+  
+  // Test the URL with a simple fetch
+  try {
+    const testResponse = await fetch(imageUrl, { 
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; AI-Image-Generator/1.0)'
+      }
+    });
+    
+    if (testResponse.ok && testResponse.headers.get('content-type')?.startsWith('image/')) {
+      return { url: imageUrl };
+    }
+    throw new Error('Invalid image response');
+  } catch (error) {
+    console.error('Pollinations failed:', error);
+    throw new Error('Pollinations service unavailable');
+  }
+}
+
+// Alternative service using Picsum with text overlay for quick testing
+async function generateWithPicsum(options: ImageGenerationOptions): Promise<{ url: string }> {
+  const { aspectRatio = "square" } = options;
+  
+  // Map aspect ratios to dimensions
+  let width = 800, height = 800;
+  if (aspectRatio === "landscape") { width = 1200; height = 800; }
+  if (aspectRatio === "portrait") { width = 800; height = 1200; }
+  
+  // Use Picsum for reliable placeholder images
   const seed = Math.floor(Math.random() * 1000);
-  const demoUrl = `https://picsum.photos/${width}/${height}?random=${seed}`;
+  const imageUrl = `https://picsum.photos/${width}/${height}?random=${seed}`;
   
-  return { url: demoUrl };
+  console.log('Using Picsum fallback:', imageUrl);
+  return { url: imageUrl };
+}
+
+// Alternative free service using a simpler image API
+async function generateWithSimpleAPI(options: ImageGenerationOptions): Promise<{ url: string }> {
+  const { prompt, style = "realistic", aspectRatio = "square" } = options;
+  
+  // Map aspect ratios to dimensions  
+  let width = 512, height = 512;
+  if (aspectRatio === "landscape") { width = 768; height = 512; }
+  if (aspectRatio === "portrait") { width = 512; height = 768; }
+
+  // Try a simple image generation API
+  try {
+    const response = await fetch(`https://api.limewire.com/api/image/generation`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Api-Version": "v1",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        aspect_ratio: aspectRatio,
+        quality: "standard"
+      }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.data && data.data[0] && data.data[0].asset_url) {
+        return { url: data.data[0].asset_url };
+      }
+    }
+    throw new Error('LimeWire API failed');
+  } catch (error) {
+    console.error('LimeWire API error:', error);
+    throw new Error('Alternative API unavailable');
+  }
+}
+
+// Improved Pollinations with different approach
+async function generateWithPollinationsSimple(options: ImageGenerationOptions): Promise<{ url: string }> {
+  const { prompt, aspectRatio = "square" } = options;
+  
+  // Create a very simple, clean URL
+  const cleanPrompt = prompt.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+  const words = cleanPrompt.split(/\s+/).slice(0, 10).join('-'); // Max 10 words
+  
+  // Map aspect ratios to dimensions
+  let width = 512, height = 512;
+  if (aspectRatio === "landscape") { width = 768; height = 512; }
+  if (aspectRatio === "portrait") { width = 512; height = 768; }
+  
+  // Simple Pollinations URL
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(words)}?width=${width}&height=${height}`;
+  
+  console.log('Simple Pollinations URL:', imageUrl);
+  return { url: imageUrl };
 }
 
 export async function generateImage(options: ImageGenerationOptions): Promise<{ url: string }> {
   try {
-    // Try Pollinations first (free Stable Diffusion)
-    console.log('Attempting image generation with Pollinations API...');
-    return await generateWithPollinations(options);
+    // Try simple Pollinations approach first
+    console.log('Attempting simple Pollinations generation...');
+    return await generateWithPollinationsSimple(options);
   } catch (error) {
-    console.log('Pollinations failed, trying Hugging Face:', error);
+    console.log('Simple Pollinations failed, trying full version:', error);
     
     try {
-      // Try Hugging Face as backup
-      console.log('Attempting image generation with Hugging Face API...');
-      return await generateWithHuggingFace(options);
+      // Try full Pollinations as backup
+      console.log('Attempting full Pollinations API...');
+      return await generateWithPollinations(options);
     } catch (error2) {
-      console.log('Hugging Face failed, using demo mode:', error2);
+      console.log('Both Pollinations approaches failed, using Picsum:', error2);
       
-      // Use demo images as final fallback
-      console.log('Using demo images as fallback...');
-      return await generateDemo(options);
+      // Use Picsum as reliable fallback
+      console.log('Using Picsum for reliable image display...');
+      return await generateWithPicsum(options);
     }
   }
 }

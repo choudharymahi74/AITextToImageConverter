@@ -107,13 +107,37 @@ export default function ImageGallery() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {images.map((image) => (
-              <Card key={image.id} className="group relative rounded-xl shadow-lg overflow-hidden border border-slate-200 hover:shadow-xl transition-all duration-300">
+            {images.map((image) => {
+              // Use proxy for external images to handle CORS
+              const imageUrl = image.imageUrl.startsWith('http') 
+                ? `/api/images/proxy?url=${encodeURIComponent(image.imageUrl)}`
+                : image.imageUrl;
+              
+              return (
+              <Card key={image.id} className="group relative rounded-xl shadow-lg overflow-hidden border border-border hover:shadow-xl transition-all duration-300">
                 <div className="aspect-square relative overflow-hidden">
                   <img 
-                    src={image.imageUrl}
+                    src={imageUrl}
                     alt={`AI generated: ${image.prompt}`}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      console.error('Image failed to load:', image.imageUrl);
+                      e.currentTarget.style.display = 'none';
+                      const parent = e.currentTarget.parentElement;
+                      if (parent) {
+                        parent.innerHTML = `
+                          <div class="w-full h-full flex items-center justify-center bg-muted text-muted-foreground">
+                            <div class="text-center p-4">
+                              <p class="text-sm font-medium">Image Loading Issue</p>
+                              <p class="text-xs mt-1">The image service is temporarily unavailable</p>
+                              <button class="text-xs text-primary mt-2 hover:underline" onclick="window.location.reload()">
+                                Try Again
+                              </button>
+                            </div>
+                          </div>
+                        `;
+                      }
+                    }}
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex space-x-2">
@@ -163,7 +187,8 @@ export default function ImageGallery() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, Download, Share } from "lucide-react";
 import type { GeneratedImage } from "@shared/schema";
@@ -16,6 +16,7 @@ export default function ImageModal({ image, onClose, onDownload, onShare }: Imag
   return (
     <Dialog open={!!image} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] p-0 bg-transparent border-none">
+        <DialogTitle className="sr-only">Generated Image: {image.prompt}</DialogTitle>
         <div className="relative">
           <Button
             variant="ghost"
